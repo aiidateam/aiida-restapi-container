@@ -7,6 +7,21 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:10
+        env:
+          POSTGRES_USER: db_user
+          POSTGRES_PASSWORD: "mypasswd"
+          POSTGRES_DB: generic_db
+
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
 
     steps:
     - uses: actions/checkout@v2
@@ -17,6 +32,83 @@ jobs:
 
     - name: Run a container
       run: |
-        export DOCKERID=`docker run -d aiida-restapi`
+        export DOCKERID=`docker run -d aiida-restapi -e POSTGRES_PASSWORD=mypassword`
         docker logs $DOCKERID
-        docker exec --tty --user aiida $DOCKERID /bin/bash -l -c 'verdi profile show default'
+
+    - name: Run tests
+      run: |
+        docker exec --tty --user aiida $DOCKERID /bin/bash -l -c 'verdi profile show generic'
+
+
+        #          docker-image:
+        #    runs-on: ubuntu-latest
+        #    timeout-minutes: 5
+        #
+        #
+        #
+        #
+        #    steps:
+        #    - uses: actions/checkout@v2
+        #
+        #
+        #    - name: Set up Python 3.8
+        #      uses: actions/setup-python@v2
+        #      with:
+        #        python-version: 3.8
+        #
+        #
+        #    - name: Install python dependencies
+        #      run: |
+        #        python -m pip install --upgrade pip
+        #        pip install -U setuptools
+        #        pip install -e .
+        #        reentry scan
+        #
+        #    - name: Setup up environment for AiiDA
+        #      env:
+        #        AIIDA_TEST_BACKEND: django
+        #      run: .github/aiida/setup_aiida.sh
+        #
+        #
+        #    - name: Load test data
+        #      run: verdi import --migration --non-interactive .github/aiida/optimade.aiida
+        #
+        #
+        #    - name: Build and start the Docker image
+        #      run: |
+        #        export DOCKER_HOST_IP=$(ip route | grep docker0 | awk '{print $9}')
+        #        docker-compose -f profiles/docker-compose.yml up &
+        #        .github/workflows/wait_for_it.sh localhost:3253 -t 360
+        #        sleep 15
+        #
+        #    - name: Test base URL - unversioned
+        #      run: |
+        #        curl http://localhost:3253/info > info.json
+        #        grep -F '"data":{' info.json || ( cat info.json; exit 1 )
+        #        grep -F 'aiida-optimade' info.json || ( cat info.json; exit 1 )
+        #        curl http://localhost:3253/structures/1 > structure.json
+        #        grep -F '"dimension_types":[' structure.json || ( cat structure.json; exit 1 )
+        #
+        #    - name: Test base URL - vMAJOR
+        #      run: |
+        #        curl http://localhost:3253/v1/info > info.json
+        #        grep -F '"data":{' info.json || ( cat info.json; exit 1 )
+        #        grep -F 'aiida-optimade' info.json || ( cat info.json; exit 1 )
+        #        curl http://localhost:3253/v1/structures/1 > structure.json
+        #        grep -F '"dimension_types":[' structure.json || ( cat structure.json; exit 1 )
+        #
+        #    - name: Test base URL - vMAJOR.MINOR
+        #      run: |
+        #        curl http://localhost:3253/v1.0/info > info.json
+        #        grep -F '"data":{' info.json || ( cat info.json; exit 1 )
+        #        grep -F 'aiida-optimade' info.json || ( cat info.json; exit 1 )
+        #        curl http://localhost:3253/v1.0/structures/1 > structure.json
+        #        grep -F '"dimension_types":[' structure.json || ( cat structure.json; exit 1 )
+        #
+        #    - name: Test base URL - vMAJOR.MINOR.PATCH
+        #      run: |
+        #        curl http://localhost:3253/v1.0.0/info > info.json
+        #        grep -F '"data":{' info.json || ( cat info.json; exit 1 )
+        #        grep -F 'aiida-optimade' info.json || ( cat info.json; exit 1 )
+        #        curl http://localhost:3253/v1.0.0/structures/1 > structure.json
+        #        grep -F '"dimension_types":[' structure.json || ( cat structure.json; exit 1 )
