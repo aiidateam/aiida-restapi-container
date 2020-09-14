@@ -11,10 +11,8 @@ jobs:
       postgres:
         image: postgres:10
         env:
-          POSTGRES_USER: db_user
-          POSTGRES_PASSWORD: "mypasswd"
-          POSTGRES_DB: generic_db
-
+          POSTGRES_USER: pgsuperuser
+          POSTGRES_PASSWORD: "pgsuperpass"
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -32,12 +30,23 @@ jobs:
 
     - name: Run a container
       run: |
-        export DOCKERID=`docker run -d aiida-restapi -e POSTGRES_PASSWORD=mypassword`
-        docker logs $DOCKERID
+        docker run -d \
+          --name restapi-container \
+          -e AIIDA_DB_SUPERUSER=pg_superuser \
+          -e AIIDA_DB_SUPER_PASS=pg_superpass \
+          -p 3253:80 \
+          aiida-restapi
+        .github/workflows/wait_for_it.sh localhost:3253/api/v4/server -t 360
+        docker logs restapi-container
 
-    - name: Run tests
+    - name: Run verdi inside container
       run: |
-        docker exec --tty --user aiida $DOCKERID /bin/bash -l -c 'verdi profile show generic'
+        docker exec --tty --user aiida restapi-container /bin/bash -l -c 'verdi profile show generic'
+
+    - name: Test /users endpoint
+      run: |
+        curl http://localhost:3253/api/v4/users > users.json
+        grep -F 'info@materialscloud.org' users.json || ( cat users.json; exit 1 )
 
 
         #          docker-image:
@@ -103,12 +112,4 @@ jobs:
         #        grep -F '"data":{' info.json || ( cat info.json; exit 1 )
         #        grep -F 'aiida-optimade' info.json || ( cat info.json; exit 1 )
         #        curl http://localhost:3253/v1.0/structures/1 > structure.json
-        #        grep -F '"dimension_types":[' structure.json || ( cat structure.json; exit 1 )
-        #
-        #    - name: Test base URL - vMAJOR.MINOR.PATCH
-        #      run: |
-        #        curl http://localhost:3253/v1.0.0/info > info.json
-        #        grep -F '"data":{' info.json || ( cat info.json; exit 1 )
-        #        grep -F 'aiida-optimade' info.json || ( cat info.json; exit 1 )
-        #        curl http://localhost:3253/v1.0.0/structures/1 > structure.json
         #        grep -F '"dimension_types":[' structure.json || ( cat structure.json; exit 1 )
