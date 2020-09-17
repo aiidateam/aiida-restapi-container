@@ -2,9 +2,12 @@
 FROM tiangolo/uwsgi-nginx-flask:python3.7
 
 ARG AIIDA_VERSION=1.2.1
+ARG AIIDA_TAG=""
 
 # Install AiiDA
-RUN pip install aiida-core[rest,atomic_tools]==$AIIDA_VERSION
+#RUN pip install aiida-core[rest,atomic_tools]==$AIIDA_VERSION
+RUN if [ -z "$AIIDA_TAG" ]; then pip install aiida-core[rest,atomic_tools]==$AIIDA_VERSION; \
+    else pip install https://github.com/aiidateam/aiida-core/archive/$AIIDA_TAG.tar.gz#egg=aiida-core[rest,atomic_tools]; fi
 RUN reentry scan -r aiida
 
 # Scripts for REST API
